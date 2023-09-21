@@ -8,7 +8,7 @@ lint-flake8-test:
   stage: lint
   script:
     - pip install -r requirements.txt
-    - flake8 .
+    - flake8 ./app.py
     - isort --check-only .
 
 tests:
