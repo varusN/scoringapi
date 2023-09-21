@@ -199,7 +199,7 @@ def check_auth(request):
 def validation(request, body, argument):
     if argument not in body.keys():
         if request.required:
-            logging.error(f'{argument} does not exist, but required')
+            logging.info(f'{argument} does not exist, but required')
             raise KeyError
         else:
             logging.info(f'{argument} does not exist')
@@ -207,7 +207,7 @@ def validation(request, body, argument):
     request.value = body[argument]
     if hasattr(request, 'nullable'):
         if not request.nullable and request.value is None:
-            logging.error(f'{argument} cant be null')
+            logging.info(f'{argument} cant be null')
             raise ValueError
     return request.value
 
@@ -219,7 +219,7 @@ def pair_validation(arguments):
         return
     if 'gender' in arguments and 'birthday' in arguments:
         return
-    logging.error('request does not satisfied validation policy')
+    logging.info('request does not satisfied validation policy')
     raise ValueError
 
 
@@ -229,10 +229,11 @@ def method_handler(request, ctx, store):
     invalid = []
     body = request["body"]
     if body == {}:
-        logging.error("Invalid request body")
+        logging.info("Invalid request body")
         code = INVALID_REQUEST
         return response, code
     request = MethodRequest()
+
     try:
         param = request.account
         request.account = validation(param, body, 'account')
@@ -244,6 +245,7 @@ def method_handler(request, ctx, store):
         return response, code
     except CustomException:
         pass
+
     try:
         param = request.login
         request.login = validation(param, body, 'login')
@@ -253,6 +255,9 @@ def method_handler(request, ctx, store):
     except KeyError:
         code = INVALID_REQUEST
         return response, code
+    except CustomException:
+        pass
+
     try:
         param = request.token
         request.token = validation(param, body, 'token')
@@ -262,6 +267,9 @@ def method_handler(request, ctx, store):
     except KeyError:
         code = BAD_REQUEST
         return response, code
+    except CustomException:
+        pass
+
     if check_auth(request):
         try:
             param = request.arguments
@@ -284,7 +292,7 @@ def method_handler(request, ctx, store):
         if request.method == 'online_score':
             arguments = request.arguments
             if arguments == {}:
-                logging.error("Invalid request arguments")
+                logging.info("Invalid request arguments")
                 code = INVALID_REQUEST
                 return response, code
             scoring = OnlineScoreRequest()
@@ -388,7 +396,7 @@ def method_handler(request, ctx, store):
             ctx["nclients"] = 0
             arguments = request.arguments
             if arguments == {}:
-                logging.error("Invalid request arguments")
+                logging.info("Invalid request arguments")
                 code = INVALID_REQUEST
                 return response, code
             interests = ClientsInterestsRequest()
@@ -425,7 +433,7 @@ def method_handler(request, ctx, store):
                 code = OK
 
     else:
-        logging.error("Authentication failed")
+        logging.info("Authentication failed")
         code = FORBIDDEN
 
     return response, code
@@ -462,7 +470,7 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             else:
                 code = NOT_FOUND
         else:
-            logging.error(f"{context['request_id']} | Empty request")
+            logging.info(f"{context['request_id']} | Empty request")
             code = INVALID_REQUEST
             response = '_'
 
