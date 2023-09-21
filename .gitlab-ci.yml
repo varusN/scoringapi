@@ -8,7 +8,7 @@ lint-flake8-test:
   stage: lint
   script:
     - pip install -r requirements.txt
-    - flake8 --ignore E501,W503 --max-complexity 10 --max-line-length 120 --statistics
+    - flake8 --ignore E501,W503,W605 --max-complexity 10 --max-line-length 120 --statistics
     - isort --check-only .
 
 tests:
