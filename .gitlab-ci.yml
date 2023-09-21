@@ -1,14 +1,14 @@
 image: python:3.11
 
 stages:
-  – test
+  - test
 
 lint-flake8:
   stage: test
   script:
-    – pip install -f requirements.txt
-    – flake8 --ignore E501,W503 --max-complexity 10 --max-line-length 120 --statistics
-    – isort --check-only .
+    - pip install -f requirements.txt
+    - flake8 --ignore E501,W503 --max-complexity 10 --max-line-length 120 --statistics
+    - isort --check-only .
     - ./test.py
 
 artifacts:
