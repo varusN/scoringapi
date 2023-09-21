@@ -14,5 +14,4 @@ lint-flake8-test:
 tests:
   stage: test
   script:
-    - chmod +x test.py
-    - ./test.py
+    - python ./test.py
