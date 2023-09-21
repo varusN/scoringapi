@@ -1,0 +1,15 @@
+image: python:3.11
+
+stages:
+  – test
+
+lint-flake8:
+  stage: test
+  script:
+    – pip install flake8 isort
+    – flake8 --ignore E501,W503 --max-complexity 10 --max-line-length 120 --statistics
+    – isort --check-only .
+    - ./test.py
+
+artifacts:
+  when: always
