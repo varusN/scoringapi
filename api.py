@@ -42,10 +42,13 @@ class CustomException(Exception):
     pass
 
 
-class CharField:
+class Fields:
     def __init__(self, required, nullable):
         self.required = required
         self.nullable = nullable
+
+
+class CharField(Fields):
 
     def __setattr__(self, name, value):
         if name == 'value' and value is not None:
@@ -54,10 +57,7 @@ class CharField:
         self.__dict__[name] = value
 
 
-class ArgumentsField:
-    def __init__(self, required, nullable):
-        self.required = required
-        self.nullable = nullable
+class ArgumentsField(Fields):
 
     def __setattr__(self, name, value):
         if name == 'value' and value == {}:
@@ -66,8 +66,6 @@ class ArgumentsField:
 
 
 class EmailField(CharField):
-    def __init__(self, required, nullable):
-        super().__init__(required, nullable)
 
     def __setattr__(self, name, value):
         if name == 'value':
@@ -77,10 +75,7 @@ class EmailField(CharField):
         self.__dict__[name] = value
 
 
-class PhoneField:
-    def __init__(self, required, nullable):
-        self.required = required
-        self.nullable = nullable
+class PhoneField(CharField):
 
     def __setattr__(self, name, value):
         if name == 'value':
@@ -92,10 +87,7 @@ class PhoneField:
         self.__dict__[name] = value
 
 
-class DateField:
-    def __init__(self, required, nullable):
-        self.required = required
-        self.nullable = nullable
+class DateField(CharField):
 
     def __setattr__(self, name, value):
         if name == 'value' and value is not None:
@@ -109,10 +101,7 @@ class DateField:
         self.__dict__[name] = value
 
 
-class BirthDayField:
-    def __init__(self, required, nullable):
-        self.required = required
-        self.nullable = nullable
+class BirthDayField(CharField):
 
     def __setattr__(self, name, value):
         if name == 'value' and value is not None:
@@ -129,10 +118,7 @@ class BirthDayField:
         self.__dict__[name] = value
 
 
-class GenderField:
-    def __init__(self, required, nullable):
-        self.required = required
-        self.nullable = nullable
+class GenderField(CharField):
 
     def __setattr__(self, name, value):
         if name == 'value' and value is not None:
@@ -219,7 +205,7 @@ def pair_validation(arguments):
         return
     if 'gender' in arguments and 'birthday' in arguments:
         return
-    logging.info('request does not satisfied validation policy')
+    logging.info('request does not satisfy validation policy')
     raise ValueError
 
 
@@ -249,35 +235,24 @@ def method_handler(request, ctx, store):
     try:
         param = request.login
         request.login = validation(param, body, 'login')
-    except ValueError:
-        code = INVALID_REQUEST
-        return response, code
-    except KeyError:
+    except (ValueError, KeyError):
         code = INVALID_REQUEST
         return response, code
     except CustomException:
         pass
-
     try:
         param = request.token
         request.token = validation(param, body, 'token')
-    except ValueError:
+    except (ValueError, KeyError):
         code = INVALID_REQUEST
-        return response, code
-    except KeyError:
-        code = BAD_REQUEST
         return response, code
     except CustomException:
         pass
-
     if check_auth(request):
         try:
             param = request.arguments
             request.arguments = validation(param, body, 'arguments')
-        except ValueError:
-            code = INVALID_REQUEST
-            return response, code
-        except KeyError:
+        except (ValueError, KeyError):
             code = INVALID_REQUEST
             return response, code
         try:
@@ -319,7 +294,6 @@ def method_handler(request, ctx, store):
                 return response, code
             except CustomException:
                 pass
-
             try:
                 param = scoring.phone
                 scoring.phone = validation(param, arguments, 'phone')
@@ -331,7 +305,6 @@ def method_handler(request, ctx, store):
                 return response, code
             except CustomException:
                 pass
-
             try:
                 param = scoring.email
                 scoring.email = validation(param, arguments, 'email')
@@ -343,7 +316,6 @@ def method_handler(request, ctx, store):
                 return response, code
             except CustomException:
                 pass
-
             try:
                 param = scoring.birthday
                 scoring.birthday = validation(param, arguments, 'birthday')
@@ -355,7 +327,6 @@ def method_handler(request, ctx, store):
                 return response, code
             except CustomException:
                 pass
-
             try:
                 param = scoring.gender
                 scoring.gender = validation(param, arguments, 'gender')
@@ -388,7 +359,7 @@ def method_handler(request, ctx, store):
                     score = get_score(store, scoring.phone, scoring.email, scoring.birthday, scoring.gender,
                                       scoring.first_name, scoring.last_name)
                 response = {"score": score}
-                logging.info("Request is succesfuly proceeded.")
+                logging.info("Request is successfully proceeded.")
                 code = OK
 
         elif request.method == 'clients_interests':
@@ -403,10 +374,7 @@ def method_handler(request, ctx, store):
             try:
                 param = interests.client_ids
                 interests.client_ids = validation(param, arguments, 'client_ids')
-            except ValueError:
-                code = INVALID_REQUEST
-                return response, code
-            except KeyError:
+            except (ValueError, KeyError):
                 code = INVALID_REQUEST
                 return response, code
 
