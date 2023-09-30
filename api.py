@@ -6,11 +6,16 @@ import hashlib
 import json
 import logging
 import re
+import redis
 import uuid
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from optparse import OptionParser
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from scoring import get_interests, get_score
+
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -37,6 +42,47 @@ GENDERS = {
     FEMALE: "female",
 }
 
+interests_list = ["cars", "pets", "travel", "hi-tech", "sport", "music", "books", "tv", "cinema", "geek", "otus"]
+
+try:
+    redis = redis.StrictRedis(
+        host='127.0.0.1',
+        port=6379,
+        password="mwMtyKVge8oLd2t81",
+        charset="utf-8",
+        decode_responses=True
+        )
+except Exception as e:
+    logging.exception(f'Exception while redis connection: {e}')
+
+
+class Store:
+    def __init__(self, redis=redis):
+        self.redis = redis
+
+    def cache_get(self, key):
+        result = self.redis.get(key)
+        return result
+
+    def cache_set(self, key, score, ttl):
+        self.redis.set(key, score, ttl)
+
+    def upload_interests(self, interests_list):
+        [self.redis.sadd('interests_db', param) for param in interests_list]
+
+    def get(self, cid):
+        try:
+            db_data = len(self.redis.smembers('interests_db'))
+            if db_data == 0:
+                self.upload_interests(interests_list)
+        except redis.exceptions as e:
+            logging.exception(f'redis exception {e}')
+        try:
+            any = self.redis.srandmember('interests_db', 2)
+        except redis.exceptions as e:
+            logging.exception(f'redis exception {e}')
+            raise redis.exceptions
+        return any
 
 class CustomException(Exception):
     pass
@@ -69,7 +115,7 @@ class EmailField(CharField):
 
     def __setattr__(self, name, value):
         if name == 'value':
-            regex = '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
+            regex = r'^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
             if not re.match(regex, value):
                 raise ValueError
         self.__dict__[name] = value
@@ -79,9 +125,9 @@ class PhoneField(CharField):
 
     def __setattr__(self, name, value):
         if name == 'value':
-            regex = '^7\d{10}$'
+            regex = r'^7\d{10}$'
             if re.match(regex, str(value)) or value is None:
-                self.__dict__[name] = value
+                value = str(value)
             else:
                 raise ValueError
         self.__dict__[name] = value
@@ -95,7 +141,7 @@ class DateField(CharField):
             if len(date_parts) != 3 or not all(map(lambda x: x.isdigit(), date_parts)):
                 raise ValueError
             try:
-                datetime.datetime.strptime(value, '%d.%m.%Y').date()
+                value = datetime.datetime.strptime(value, '%d.%m.%Y').date()
             except Exception:
                 raise ValueError
         self.__dict__[name] = value
@@ -110,10 +156,10 @@ class BirthDayField(CharField):
                 raise ValueError
             current_date = datetime.date.today()
             try:
-                date = datetime.datetime.strptime(value, '%d.%m.%Y').date()
+                value = datetime.datetime.strptime(value, '%d.%m.%Y').date()
             except Exception:
                 raise ValueError
-            if int((current_date - date).days / 365.2425) > 70:
+            if int((current_date - value).days / 365.2425) > 70:
                 raise ValueError
         self.__dict__[name] = value
 
@@ -205,7 +251,6 @@ def pair_validation(arguments):
         return
     if 'gender' in arguments and 'birthday' in arguments:
         return
-    logging.info('request does not satisfy validation policy')
     raise ValueError
 
 
@@ -281,7 +326,7 @@ def method_handler(request, ctx, store):
                 code = BAD_REQUEST
                 return response, code
             except CustomException:
-                pass
+                scoring.first_name = None
 
             try:
                 param = scoring.last_name
@@ -293,7 +338,7 @@ def method_handler(request, ctx, store):
                 code = BAD_REQUEST
                 return response, code
             except CustomException:
-                pass
+                scoring.last_name = None
             try:
                 param = scoring.phone
                 scoring.phone = validation(param, arguments, 'phone')
@@ -304,7 +349,7 @@ def method_handler(request, ctx, store):
                 code = BAD_REQUEST
                 return response, code
             except CustomException:
-                pass
+                scoring.phone = None
             try:
                 param = scoring.email
                 scoring.email = validation(param, arguments, 'email')
@@ -315,7 +360,7 @@ def method_handler(request, ctx, store):
                 code = BAD_REQUEST
                 return response, code
             except CustomException:
-                pass
+                scoring.email = None
             try:
                 param = scoring.birthday
                 scoring.birthday = validation(param, arguments, 'birthday')
@@ -326,7 +371,7 @@ def method_handler(request, ctx, store):
                 code = BAD_REQUEST
                 return response, code
             except CustomException:
-                pass
+                scoring.birthday = None
             try:
                 param = scoring.gender
                 scoring.gender = validation(param, arguments, 'gender')
@@ -337,11 +382,12 @@ def method_handler(request, ctx, store):
                 code = BAD_REQUEST
                 return response, code
             except CustomException:
-                pass
+                scoring.gender = None
 
             try:
                 pair_validation(ctx["has"])
             except ValueError:
+                logging.info('request does not satisfy validation policy')
                 code = INVALID_REQUEST
                 return response, code
             except KeyError:
@@ -356,7 +402,7 @@ def method_handler(request, ctx, store):
                 if request.is_admin:
                     score = 42
                 else:
-                    score = get_score(store, scoring.phone, scoring.email, scoring.birthday, scoring.gender,
+                    score = get_score(logging, store, scoring.phone, scoring.email, scoring.birthday, scoring.gender,
                                       scoring.first_name, scoring.last_name)
                 response = {"score": score}
                 logging.info("Request is successfully proceeded.")
@@ -387,7 +433,7 @@ def method_handler(request, ctx, store):
                 code = BAD_REQUEST
                 return response, code
             except CustomException:
-                pass
+                interests.date = None
             if len(invalid) > 0:
                 code = INVALID_REQUEST
                 response = f"The following filed(s) are invalid: {','.join(invalid)}"
@@ -395,15 +441,26 @@ def method_handler(request, ctx, store):
             else:
                 response = dict()
                 for cid in interests.client_ids:
-                    response[cid] = get_interests(store, cid)
-                    ctx["nclients"] += 1
+                    i = 0
+                    while i < 5:
+                        i += 1
+                        try:
+                            response[cid] = get_interests(logging, store, cid)
+                        except Exception:
+                            pass
+                        else:
+                            ctx["nclients"] += 1
+                            break
+                    if not response.get(cid):
+                        code = INTERNAL_ERROR
+                        return response, code
+
                 logging.info("Request is succesfuly proceeded.")
                 code = OK
 
     else:
         logging.info("Authentication failed")
         code = FORBIDDEN
-
     return response, code
 
 
@@ -411,7 +468,11 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
         "method": method_handler
     }
-    store = None
+
+    try:
+        store = Store()
+    except redis.exceptions.ConnectionError:
+        store = None
 
     def get_request_id(self, headers):
         return headers.get('HTTP_X_REQUEST_ID', uuid.uuid4().hex)
