@@ -49,11 +49,7 @@ class TestScoring(unittest.TestCase):
             first_name = tests.get('first_name', None)
             last_name = tests.get('last_name', None)
             result = get_score(logging, mocked_store, phone, email, birthday, gender, first_name, last_name)
-            try:
-                self.assertEqual(expectation, result)
-            except AssertionError:
-                print(f'{tests, expectation}')
-                raise AssertionError
+            self.assertEqual(expectation, result, tests)
 
     def test_get_interests(self):
         with (
