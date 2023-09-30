@@ -151,21 +151,21 @@ class TestInterests(TestSuite):
                         for v in response.values()))
         self.assertEqual(self.context.get("nclients"), len(arguments["client_ids"]))
 
-# class TestDB(TestSuite):
-#
-#     @cases([
-#         {"client_ids": [1, 2, 3], "date": datetime.datetime.today().strftime("%d.%m.%Y")},
-#         {"client_ids": [1, 2], "date": "19.07.2099"},
-#         {"client_ids": [0]},
-#     ])
-#     def test_db_is_down(self, arguments):
-#         store = None
-#         def get_response(request):
-#             return api.method_handler({"body": request, "headers": self.headers}, self.context, store)
-#         request = {"account": "horns&hoofs", "login": "h&f", "method": "clients_interests", "arguments": arguments}
-#         self.set_valid_auth(request)
-#         response, code = get_response(request)
-#         self.assertEqual(api.INTERNAL_ERROR, code, arguments)
+class TestDB(TestSuite):
+
+    @cases([
+        {"client_ids": [1, 2, 3], "date": datetime.datetime.today().strftime("%d.%m.%Y")},
+        {"client_ids": [1, 2], "date": "19.07.2099"},
+        {"client_ids": [0]},
+    ])
+    def test_db_is_down(self, arguments):
+        store = None
+        def get_response(request):
+            return api.method_handler({"body": request, "headers": self.headers}, self.context, store)
+        request = {"account": "horns&hoofs", "login": "h&f", "method": "clients_interests", "arguments": arguments}
+        self.set_valid_auth(request)
+        response, code = get_response(request)
+        self.assertEqual(api.INTERNAL_ERROR, code, arguments)
 
 
 if __name__ == "__main__":
