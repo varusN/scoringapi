@@ -1,9 +1,5 @@
 import hashlib
-import json
-import time
 
-class TimeOutException(Exception):
-   pass
 
 def get_score(logging, store, phone, email, birthday=None, gender=None, first_name=None, last_name=None):
     key_parts = [
@@ -38,6 +34,7 @@ def get_score(logging, store, phone, email, birthday=None, gender=None, first_na
         pass
     return score
 
+
 def get_interests(logging, store, cid):
     try:
         r = store.get(cid)
@@ -45,5 +42,3 @@ def get_interests(logging, store, cid):
         logging.info('DB connection issue, request is rejected')
         raise ConnectionError
     return r if r else []
-
-

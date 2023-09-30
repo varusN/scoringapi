@@ -6,16 +6,16 @@ import hashlib
 import json
 import logging
 import re
-import redis
 import uuid
-import time
+import warnings
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from optparse import OptionParser
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+import redis
 
 from scoring import get_interests, get_score
 
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -50,8 +50,7 @@ try:
         port=6379,
         password="mwMtyKVge8oLd2t81",
         charset="utf-8",
-        decode_responses=True
-        )
+        decode_responses=True)
 except Exception as e:
     logging.exception(f'Exception while redis connection: {e}')
 
@@ -83,6 +82,7 @@ class Store:
             logging.exception(f'redis exception {e}')
             raise redis.exceptions
         return any
+
 
 class CustomException(Exception):
     pass
