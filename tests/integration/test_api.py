@@ -151,21 +151,36 @@ class TestInterests(TestSuite):
                         for v in response.values()))
         self.assertEqual(self.context.get("nclients"), len(arguments["client_ids"]))
 
+
 class TestDB(TestSuite):
+    def get_response(self, request):
+        store = None
+        return api.method_handler({"body": request, "headers": self.headers}, self.context, store)
 
     @cases([
         {"client_ids": [1, 2, 3], "date": datetime.datetime.today().strftime("%d.%m.%Y")},
         {"client_ids": [1, 2], "date": "19.07.2099"},
         {"client_ids": [0]},
     ])
-    def test_db_is_down(self, arguments):
-        store = None
-        def get_response(request):
-            return api.method_handler({"body": request, "headers": self.headers}, self.context, store)
+    def test_db_is_down_clients_interests(self, arguments):
         request = {"account": "horns&hoofs", "login": "h&f", "method": "clients_interests", "arguments": arguments}
         self.set_valid_auth(request)
-        response, code = get_response(request)
+        response, code = self.get_response(request)
         self.assertEqual(api.INTERNAL_ERROR, code, arguments)
+
+    @cases([
+        {"phone": "79175002040", "email": "stupnikov@otus.ru"},
+        {"phone": 79175002040, "email": "stupnikov@otus.ru"},
+        {"gender": 1, "birthday": "01.01.2000", "first_name": "a", "last_name": "b"},
+    ])
+    def test_db_is_down_score_request(self, arguments):
+        request = {"account": "horns&hoofs", "login": "h&f", "method": "online_score", "arguments": arguments}
+        self.set_valid_auth(request)
+        response, code = self.get_response(request)
+        self.assertEqual(api.OK, code, arguments)
+        score = response.get("score")
+        self.assertTrue(isinstance(score, (int, float)) and score >= 0, arguments)
+        self.assertEqual(sorted(self.context["has"]), sorted(arguments.keys()))
 
 
 if __name__ == "__main__":
